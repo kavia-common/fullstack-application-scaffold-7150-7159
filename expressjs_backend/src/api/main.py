@@ -2,10 +2,21 @@
 
 This is the main ASGI entrypoint used by Uvicorn/Gunicorn:
     uvicorn src.api.main:app --host 0.0.0.0 --port 3010
+
+Notes:
+- This app intentionally loads a local `.env` file (if present) so the service can
+  be started in dev/preview environments without manual `export ...`.
+- All configuration remains optional; safe defaults allow clean startup even with
+  no env vars set.
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load `.env` as early as possible so settings/db init see environment variables.
+# This is a no-op if the file is missing.
+load_dotenv()
 
 from src.api.db.mongodb import close_mongo, init_mongo
 from src.api.routers.v1 import router as v1_router

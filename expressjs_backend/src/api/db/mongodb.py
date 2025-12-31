@@ -3,11 +3,15 @@ MongoDB integration layer.
 
 This module is intentionally resilient:
 - If MONGODB_URI is not provided, the API still runs and falls back to in-memory storage.
-- If MongoDB is unreachable, endpoints that require the DB can gracefully fallback (where designed).
+- If MongoDB is unreachable, the service must still start cleanly and CRUD should
+  remain usable via the in-memory fallback.
 
 Env vars (optional):
 - MONGODB_URI: MongoDB connection string, e.g. mongodb://localhost:27017
 - MONGODB_DB: Database name (default: "app")
+- MONGODB_SERVER_SELECTION_TIMEOUT_MS: Bound how long the driver waits when Mongo
+  is unreachable (default: 500ms). Keeping this low avoids Swagger "Try it out"
+  requests hanging.
 """
 
 from __future__ import annotations
@@ -37,7 +41,17 @@ class MongoClientManager:
             return
 
         # Motor client is lazy; connection is verified separately via ping.
-        self._client = AsyncIOMotorClient(mongodb_uri)
+        # IMPORTANT: bound server selection to avoid long request hangs when Mongo is down.
+        timeout_ms_raw = os.getenv("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "500")
+        try:
+            timeout_ms = max(50, int(timeout_ms_raw))
+        except ValueError:
+            timeout_ms = 500
+
+        self._client = AsyncIOMotorClient(
+            mongodb_uri,
+            serverSelectionTimeoutMS=timeout_ms,
+        )
         self._db = self._client[db_name]
 
     async def ping(self) -> bool:
@@ -59,6 +73,10 @@ class MongoClientManager:
         """Return the configured database handle (or None if not configured)."""
         return self._db
 
+    def disable(self) -> None:
+        """Disable Mongo usage for this process (fallback to in-memory)."""
+        self.close()
+
     def close(self) -> None:
         """Close the Mongo client if open."""
         if self._client is not None:
@@ -72,8 +90,17 @@ mongo_manager = MongoClientManager()
 
 # PUBLIC_INTERFACE
 async def init_mongo() -> None:
-    """Initialize MongoDB connection manager from environment variables."""
+    """Initialize MongoDB connection manager from environment variables.
+
+    If MongoDB is configured but unreachable, we disable it and allow the app to
+    continue with in-memory stores so Swagger verification remains functional.
+    """
     mongo_manager.configure_from_env()
+
+    # If configured but not reachable, disable Mongo usage to prevent hangs.
+    ok = await mongo_manager.ping()
+    if not ok:
+        mongo_manager.disable()
 
 
 # PUBLIC_INTERFACE

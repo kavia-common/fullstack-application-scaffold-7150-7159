@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
@@ -83,7 +84,10 @@ class MongoTasksStore:
     """Mongo-backed tasks store."""
 
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
-        self._col = db["tasks"]
+        # Allow scaffold environments to choose a collection name via env.
+        # Default matches the original behavior and the OpenAPI examples.
+        collection_name = os.getenv("MONGODB_COLLECTION_TASKS", "tasks").strip() or "tasks"
+        self._col = db[collection_name]
 
     async def ensure_indexes(self) -> None:
         # Indexes are best-effort; do not hard-fail app startup.
