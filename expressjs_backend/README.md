@@ -35,6 +35,14 @@ pip install -r requirements.txt
 
 ### Run the API
 
+Recommended (works in preview runners too; uses the local `venv/` if present and respects `PORT`):
+
+```bash
+./start.sh
+```
+
+Or directly (when you have activated the venv):
+
 ```bash
 source venv/bin/activate
 uvicorn src.api.main:app --host 0.0.0.0 --port 3010

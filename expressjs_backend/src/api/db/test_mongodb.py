@@ -24,7 +24,7 @@ class _BoolExplodingDb:
         return {"ok": 1}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ping_does_not_bool_evaluate_db() -> None:
     """Ensure ping uses explicit None checks and never triggers __bool__."""
     mgr = MongoClientManager()
