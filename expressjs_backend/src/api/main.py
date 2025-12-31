@@ -1,8 +1,15 @@
+"""FastAPI application entrypoint.
+
+This is the main ASGI entrypoint used by Uvicorn/Gunicorn:
+    uvicorn src.api.main:app --host 0.0.0.0 --port 3010
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.db.mongodb import close_mongo, init_mongo
 from src.api.routers.v1 import router as v1_router
+from src.api.settings import get_api_metadata, get_cors_allow_origins
 
 openapi_tags = [
     {
@@ -19,20 +26,19 @@ openapi_tags = [
     },
 ]
 
+_api_meta = get_api_metadata()
+
 app = FastAPI(
-    title="Fullstack Application Scaffold API",
-    description=(
-        "Production-shaped FastAPI backend for the scaffolded fullstack app. "
-        "Includes versioned routing, a sample CRUD resource, and optional MongoDB integration."
-    ),
-    version="1.0.0",
+    title=_api_meta["title"],
+    description=_api_meta["description"],
+    version=_api_meta["version"],
     openapi_tags=openapi_tags,
 )
 
-# Keep CORS permissive for scaffold/dev; tighten in production deployments.
+# Keep CORS permissive for scaffold/dev; tighten in production deployments by setting CORS_ALLOW_ORIGINS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +57,7 @@ async def _shutdown() -> None:
     await close_mongo()
 
 
+# PUBLIC_INTERFACE
 @app.get(
     "/",
     tags=["health"],
