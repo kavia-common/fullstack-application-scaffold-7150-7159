@@ -35,10 +35,21 @@ class HealthOut(BaseModel):
     operation_id="v1_health",
 )
 async def health_v1() -> HealthOut:
-    """Return health information for the service and optional MongoDB connectivity."""
+    """Return health information for the service and optional MongoDB connectivity.
+
+    This endpoint must never fail due to transient DB issues. If MongoDB is
+    configured but unreachable, we return mongodb_ok=False.
+    """
     db = get_mongo_db()
     configured = db is not None
-    ok = await mongo_manager.ping() if configured else False
+
+    ok = False
+    if configured:
+        try:
+            ok = await mongo_manager.ping()
+        except Exception:
+            ok = False
+
     return HealthOut(status="ok", mongodb_configured=configured, mongodb_ok=ok)
 
 

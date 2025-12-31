@@ -41,8 +41,13 @@ class MongoClientManager:
         self._db = self._client[db_name]
 
     async def ping(self) -> bool:
-        """Return True if MongoDB is configured and reachable, else False."""
-        if not self._db:
+        """Return True if MongoDB is configured and reachable, else False.
+
+        Note: Motor/PyMongo Database objects **must not** be evaluated for truthiness
+        (`if db:` / `if not db:`) because that raises NotImplementedError.
+        Always compare explicitly with None.
+        """
+        if self._db is None:
             return False
         try:
             await self._db.command("ping")
