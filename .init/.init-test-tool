@@ -1,0 +1,4 @@
+{
+    "command": "pytest",
+    "working_directory": "/home/kavia/workspace/code-generation/fullstack-application-scaffold-7150-7159/expressjs_backend"
+}
